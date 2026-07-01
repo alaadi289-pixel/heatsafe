@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HeatSafe</title>
+<style>
+body{margin:0;font-family:Arial;background:#0f172a;color:white;text-align:center}
+.card{margin:25px;padding:25px;border-radius:25px;background:#1e293b}
+.status{font-size:34px;font-weight:bold;margin:20px}
+.big{font-size:48px}
+button{padding:15px 25px;border:0;border-radius:15px;font-size:18px;background:#22c55e;color:white}
+.item{margin:12px;font-size:20px}
+</style>
+</head>
+<body>
+
+<div class="card">
+<h1>HeatSafe</h1>
+<p>Heat Stress Monitor</p>
+<button onclick="start()">Check Now</button>
+
+<div id="result" class="status">Press Check Now</div>
+
+<div class="item" id="temp"></div>
+<div class="item" id="humidity"></div>
+<div class="item" id="heatindex"></div>
+<div class="item" id="work"></div>
+<div class="item" id="water"></div>
+</div>
+
+<script>
+function getStatus(hi){
+  if(hi >= 52){
+    return ["🔴 EXTREME DANGER","Take 10-minute break every 20 minutes","Drink 1 cup every 10 minutes","#dc2626"];
+  } else if(hi >= 39){
+    return ["🟠 DANGER","Take 10-minute break every 30 minutes","Drink 1 cup every 15 minutes","#f97316"];
+  } else if(hi >= 30){
+    return ["🟡 EXTREME CAUTION","Take 10-minute break every 50 minutes","Drink 1 cup every 20 minutes","#eab308"];
+  } else {
+    return ["🟢 CAUTION","Keep normal work schedule","Drink 1 cup every 20 minutes","#22c55e"];
+  }
+}
+
+function heatIndexC(T,RH){
+  let F = (T * 9/5) + 32;
+  let HI = -42.379 + 2.04901523*F + 10.14333127*RH - 0.22475541*F*RH
+  - 0.00683783*F*F - 0.05481717*RH*RH
+  + 0.00122874*F*F*RH + 0.00085282*F*RH*RH
+  - 0.00000199*F*F*RH*RH;
+  return Math.round((HI - 32) * 5/9);
+}
+
+function start(){
+  document.getElementById("result").innerHTML="Getting location...";
+  navigator.geolocation.getCurrentPosition(success,error);
+}
+
+function success(pos){
+  let lat = pos.coords.latitude;
+  let lon = pos.coords.longitude;
+
+  fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m`)
+  .then(r=>r.json())
+  .then(data=>{
+    let T = Math.round(data.current.temperature_2m);
+    let RH = Math.round(data.current.relative_humidity_2m);
+    let HI = heatIndexC(T,RH);
+    let s = getStatus(HI);
+
+    document.body.style.background = s[3];
+    document.getElementById("result").innerHTML = s[0];
+    document.getElementById("temp").innerHTML = "🌡 Temperature: " + T + "°C";
+    document.getElementById("humidity").innerHTML = "💧 Humidity: " + RH + "%";
+    document.getElementById("heatindex").innerHTML = "📊 Heat Index: " + HI;
+    document.getElementById("work").innerHTML = "⏱ " + s[1];
+    document.getElementById("water").innerHTML = "💧 " + s[2];
+  });
+}
+
+function error(){
+  document.getElementById("result").innerHTML="Location permission needed";
+}
+</script>
+
+</body>
+</html>
