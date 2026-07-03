@@ -35,7 +35,7 @@
       <div class="grid">
         <div class="box"><div class="label">Temperature</div><div class="value" id="temp">--°C</div></div>
         <div class="box"><div class="label">Humidity</div><div class="value" id="humidity">--%</div></div>
-        <div class="box"><div class="label">Risk Level</div><div class="value" id="level">--/4</div></div>
+        <div class="box"><div class="label">Current Flag</div><div class="value" id="level">--/4</div></div>
         <div class="box"><div class="label">Updated</div><div class="value" id="updated">--</div></div>
       </div>
       <div class="actions">
@@ -66,7 +66,7 @@
       <p class="note">Auto-refresh runs hourly between 07:00 and 16:00 while the page is open. Browser notifications usually work best when the page/app stays open.</p>
     </aside>
   </div>
-  <div class="footer">HeatSafe MVP • For awareness/demo only. Follow your official company procedure and supervisor instructions.</div>
+  <div class="footer">HeatSafe Prototype • For evaluation purposes only. Follow official heat-stress procedures.</div>
 </div>
 <div class="toast" id="toast"></div><div class="safeArea"></div>
 <script>
@@ -76,14 +76,27 @@ function tickClock(){ const d=new Date(); $('clock').textContent=d.toLocaleStrin
 function showToast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3500); }
 function showTab(id,el){ document.querySelectorAll('.section').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); $(id).classList.add('active'); el.classList.add('active'); }
 function heatIndexC(tempC, rh){ let T=tempC*9/5+32, R=rh; let HI=-42.379+2.04901523*T+10.14333127*R-0.22475541*T*R-0.00683783*T*T-0.05481717*R*R+0.00122874*T*T*R+0.00085282*T*R*R-0.00000199*T*T*R*R; if(T<80) HI=0.5*(T+61+((T-68)*1.2)+(R*0.094)); return Math.round((HI-32)*5/9); }
-function statusFromHI(hi){ if(hi>=52) return {name:'🔴 EXTREME DANGER',sub:'Extreme Danger',cls:'red',color:'#dc2626',level:'4/4',work:'Take a 10-minute break every 20 minutes.',water:'Drink 1 cup of water every 10 minutes.',action:'Stop and seek shade/cooling. Work only with approval and controls.',wm:10,bm:20}; if(hi>=39) return {name:'🟠 DANGER',sub:'Danger',cls:'orange',color:'#ea580c',level:'3/4',work:'Take a 10-minute break every 30 minutes.',water:'Drink 1 cup of water every 15 minutes.',action:'Increase monitoring. Use shade/cooling and buddy check.',wm:15,bm:30}; if(hi>=30) return {name:'🟡 EXTREME CAUTION',sub:'Extreme Caution',cls:'yellow',color:'#d6a800',level:'2/4',work:'Take a 10-minute break every 50 minutes.',water:'Drink 1 cup of water every 20 minutes.',action:'Watch for fatigue, cramps, headache, dizziness.',wm:20,bm:50}; return {name:'🟢 CAUTION',sub:'Caution',cls:'green',color:'#16a34a',level:'1/4',work:'Keep normal work schedule.',water:'Drink 1 cup of water every 20 minutes.',action:'Continue normal schedule and hydration.',wm:20,bm:60}; }
+function statusFromHI(hi){ if(hi>=52) return {name:'🔴 EXTREME DANGER',sub:'Extreme Danger',cls:'red',color:'#dc2626',level:'Red Flag',work:'Take a 10-minute break every 20 minutes.',water:'Drink 1 cup of water every 10 minutes.',action:'Stop and seek shade/cooling. Work only with approval and controls.',wm:10,bm:20}; if(hi>=39) return {name:'🟠 DANGER',sub:'Danger',cls:'orange',color:'#ea580c',level:'Orange Flag',work:'Take a 10-minute break every 30 minutes.',water:'Drink 1 cup of water every 15 minutes.',action:'Increase monitoring. Use shade/cooling and buddy check.',wm:15,bm:30}; if(hi>=30) return {name:'🟡 EXTREME CAUTION',sub:'Extreme Caution',cls:'yellow',color:'#d6a800',level:'Yellow Flag',work:'Take a 10-minute break every 50 minutes.',water:'Drink 1 cup of water every 20 minutes.',action:'Watch for fatigue, cramps, headache, dizziness.',wm:20,bm:50}; return {name:'🟢 CAUTION',sub:'Caution',cls:'green',color:'#16a34a',level:'Green Flag',work:'Keep normal work schedule.',water:'Drink 1 cup of water every 20 minutes.',action:'Continue normal schedule and hydration.',wm:20,bm:60}; }
 function applyResult(temp,rh,source='Live'){ const hi=heatIndexC(temp,rh); const s=statusFromHI(hi); lastStatus=s; document.documentElement.style.setProperty('--status',s.color); $('flagText').textContent=s.name; $('heatIndex').textContent=hi; $('statusSub').textContent=source+' • '+s.sub; $('temp').textContent=Math.round(temp)+'°C'; $('humidity').textContent=Math.round(rh)+'%'; $('level').textContent=s.level; $('updated').textContent=new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); $('workText').textContent=s.work; $('waterText').textContent=s.water; $('actionText').textContent=s.action; waterBase=s.wm; breakBase=s.bm; resetTimers(); if(s.cls==='red'||s.cls==='orange'){ notify('HeatSafe Alert', s.name+' • '+s.work); if(navigator.vibrate) navigator.vibrate([250,120,250]); } }
 function manualCheck(){ applyResult(Number($('manualT').value),Number($('manualH').value),'Manual'); }
 function checkNow(){ $('flagText').textContent='Getting location...'; if(!navigator.geolocation){ showToast('Geolocation not supported. Use Manual.'); return; } navigator.geolocation.getCurrentPosition(pos=>{ const lat=pos.coords.latitude, lon=pos.coords.longitude; $('flagText').textContent='Getting weather...'; fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m`).then(r=>r.json()).then(d=>{ applyResult(d.current.temperature_2m,d.current.relative_humidity_2m,'GPS'); }).catch(()=>{ showToast('Weather error. Use Manual mode.'); $('flagText').textContent='Weather error'; }); },()=>{ showToast('Location permission needed. Use Manual mode for demo.'); $('flagText').textContent='Location permission needed'; },{enableHighAccuracy:true,timeout:12000}); }
 function resetTimers(){ waterSeconds=waterBase*60; breakSeconds=breakBase*60; updateTimers(); if(timer) clearInterval(timer); timer=setInterval(()=>{ waterSeconds--; breakSeconds--; if(waterSeconds<=0){ notify('💧 Water Reminder','Drink 1 cup of water now.'); showToast('💧 Drink water now'); waterSeconds=waterBase*60; } if(breakSeconds<=0){ notify('🛑 Break Reminder','Take your scheduled heat-stress break.'); showToast('🛑 Take your heat-stress break'); breakSeconds=breakBase*60; } updateTimers(); },1000); }
 function updateTimers(){ $('waterTimer').textContent=fmt(waterSeconds); $('breakTimer').textContent=fmt(breakSeconds); }
 function fmt(sec){ if(sec<0)sec=0; const m=Math.floor(sec/60), s=sec%60; return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
-function enableNotifications(){ if(!('Notification' in window)){ alert('Notifications are not supported on this browser.'); return; } Notification.requestPermission().then(p=>showToast('Notification permission: '+p)); }
+function enableNotifications(){
+  if(!('Notification' in window)){
+    alert('Notifications are not supported on this browser.');
+    return;
+  }
+  Notification.requestPermission().then(p=>{
+    showToast('Notification permission: '+p);
+    const btn=document.getElementById('notifyBtn');
+    if(btn && p==='granted'){
+      btn.textContent='✅ Notifications Enabled';
+      btn.style.background='#16a34a';
+    }
+  });
+}
 function notify(title,body){ if('Notification' in window && Notification.permission==='granted') new Notification(title,{body}); }
 setInterval(()=>{ const h=new Date().getHours(); if(h>=7 && h<=16) checkNow(); },60*60*1000);
 if(location.protocol==='https:') setTimeout(()=>showToast('Tip: Add to Home Screen from Safari for app-like use.'),1200);
